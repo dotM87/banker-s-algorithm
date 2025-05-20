@@ -74,6 +74,7 @@ int main(int argc, char *argv[]){
   int Asignacion[n][m];
   int Necesidad[n][m];
   
+  // Lectura de datos y control de errores
   FILE *fp;
   if (argc == 1){
     print_help();
