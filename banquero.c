@@ -3,6 +3,15 @@
 #include <string.h>
 #include <stdbool.h>
 
+void print_vector_int(const char *nombre, int *v, int len) {
+    printf("%s = [", nombre);
+    for (int i = 0; i < len; i++) {
+        printf("%d", v[i]);
+        if (i < len - 1) printf(" ");
+    }
+    printf("]\n");
+}
+
 void print_help(void) {
     printf("BANQUERO: Detección de Interbloqueos (Algoritmo del Banquero)\n\n");
 
@@ -23,15 +32,15 @@ void print_help(void) {
     printf("       Available[0] Available[1] … Available[m−1]\n");
     printf("     – Cada valor indica cuántas unidades libres hay de ese recurso.\n\n");
 
-    printf("  3) Siguientes n líneas (matriz Allocation):\n");
-    printf("       Allocation[i][0] Allocation[i][1] … Allocation[i][m−1]\n");
+    printf("  3) Siguientes n líneas (matriz Asignacion):\n");
+    printf("       Asignacion[i][0] Asignacion[i][1] … Asignacion[i][m−1]\n");
     printf("     – Cuántas unidades de cada recurso tiene asignado el proceso i.\n\n");
 
-    printf("  4) Últimas n líneas (matriz Max):\n");
-    printf("       Max[i][0] Max[i][1] … Max[i][m−1]\n");
+    printf("  4) Últimas n líneas (matriz Demanda):\n");
+    printf("       Demanda[i][0] Demanda[i][1] … Demanda[i][m−1]\n");
     printf("     – Demanda máxima declarada por el proceso i para cada recurso.\n\n");
 
-    printf("   – Internamente se calcula Need[i][j] = Max[i][j] – Allocation[i][j].\n\n");
+    printf("   – Internamente se calcula Necesidad[i][j] = Demanda[i][j] – Asignacion[i][j].\n\n");
 
     printf("SALIDA:\n");
     printf("  • Si el estado es seguro:\n");
@@ -44,16 +53,16 @@ void print_help(void) {
     printf("EJEMPLO DE ARCHIVO “datos.txt”:\n");
     printf("  5 3\n");
     printf("  9 5 6           # Existencias (Available)\n");
-    printf("  0 1 0           # Allocation P1\n");
-    printf("  2 0 0           # Allocation P2\n");
-    printf("  3 0 2           # Allocation P3\n");
-    printf("  2 1 1           # Allocation P4\n");
-    printf("  0 0 2           # Allocation P5\n");
-    printf("  2 3 1           # Max (Demanda) P1\n");
-    printf("  3 2 2           # Max (Demanda) P2\n");
-    printf("  9 0 2           # Max (Demanda) P3\n");
-    printf("  2 5 2           # Max (Demanda) P4\n");
-    printf("  4 3 3           # Max (Demanda) P5\n\n");
+    printf("  0 1 0           # Asignacion P1\n");
+    printf("  2 0 0           # Asignacion P2\n");
+    printf("  3 0 2           # Asignacion P3\n");
+    printf("  2 1 1           # Asignacion P4\n");
+    printf("  0 0 2           # Asignacion P5\n");
+    printf("  2 3 1           # Demanda P1\n");
+    printf("  3 2 2           # Demanda P2\n");
+    printf("  9 0 2           # Demanda P3\n");
+    printf("  2 5 2           # Demanda P4\n");
+    printf("  4 3 3           # Demanda P5\n\n");
 
     printf("  – 5 procesos (P1..P5), 3 recursos (R1..R3).\n\n");
 
@@ -62,7 +71,7 @@ void print_help(void) {
     printf("  $ ./banquero datos.txt\n");
 }
 
-bool help (char *arg) {
+bool help(char *arg) {
     return (strcmp(arg, "uso") == 0 ||
             strcmp(arg, "help") == 0 ||
             strcmp(arg, "-h") == 0 ||
@@ -98,20 +107,22 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int *Existencias = malloc(m * sizeof(int));
-    int *RecursosUsados = malloc(m * sizeof(int));
+    // Reservamos memoria dinámicamente
+    int *Existencias       = malloc(m * sizeof(int));
+    int *RecursosUsados    = malloc(m * sizeof(int));
     int *RecursosDisponibles = malloc(m * sizeof(int));
-    int *Allocation = malloc(n * m * sizeof(int));
-    int *Max       = malloc(n * m * sizeof(int));
-    int *Need      = malloc(n * m * sizeof(int));
+    int *Asignacion        = malloc(n * m * sizeof(int));
+    int *Demanda           = malloc(n * m * sizeof(int));
+    int *Necesidad         = malloc(n * m * sizeof(int));
 
     if (!Existencias || !RecursosUsados || !RecursosDisponibles ||
-        !Allocation || !Max || !Need) {
+        !Asignacion || !Demanda || !Necesidad) {
         fprintf(stderr, "Error de asignación de memoria.\n");
         fclose(fp);
         return 1;
     }
 
+    // Leer vector Existencias (Available)
     for (int j = 0; j < m; j++) {
         if (fscanf(fp, "%d", &Existencias[j]) != 1) {
             fprintf(stderr, "Error leyendo Existencias[%d].\n", j);
@@ -120,20 +131,22 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    // Leer matriz Asignacion (n × m)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
-            if (fscanf(fp, "%d", &Allocation[i*m + j]) != 1) {
-                fprintf(stderr, "Error leyendo Allocation[%d][%d].\n", i, j);
+            if (fscanf(fp, "%d", &Asignacion[i*m + j]) != 1) {
+                fprintf(stderr, "Error leyendo Asignacion[%d][%d].\n", i, j);
                 fclose(fp);
                 return 1;
             }
         }
     }
 
+    // Leer matriz Demanda (n × m)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
-            if (fscanf(fp, "%d", &Max[i*m + j]) != 1) {
-                fprintf(stderr, "Error leyendo Max[%d][%d].\n", i, j);
+            if (fscanf(fp, "%d", &Demanda[i*m + j]) != 1) {
+                fprintf(stderr, "Error leyendo Demanda[%d][%d].\n", i, j);
                 fclose(fp);
                 return 1;
             }
@@ -142,74 +155,147 @@ int main(int argc, char *argv[]) {
 
     fclose(fp);
 
+    // Calcular matriz Necesidad = Demanda – Asignacion
+    printf("\n--- Cálculo de la matriz Necesidad (Max – Allocation) ---\n");
     for (int i = 0; i < n; i++) {
+        printf("P%d: ", i + 1);
+        printf("Demanda = [");
         for (int j = 0; j < m; j++) {
-            Need[i*m + j] = Max[i*m + j] - Allocation[i*m + j];
-            if (Need[i*m + j] < 0) {
-                fprintf(stderr,
-                        "Error: Need[%d][%d] = Max – Allocation es negativo.\n",
-                        i, j);
-                return 1;
-            }
+            printf("%d", Demanda[i*m + j]);
+            if (j < m - 1) printf(" ");
         }
-    }
-
-    for (int j = 0; j < m; j++) {
-        RecursosUsados[j] = 0;
-        for (int i = 0; i < n; i++) {
-            RecursosUsados[j] += Allocation[i*m + j];
+        printf("], Asignacion = [");
+        for (int j = 0; j < m; j++) {
+            printf("%d", Asignacion[i*m + j]);
+            if (j < m - 1) printf(" ");
         }
-    }
-
-    for (int j = 0; j < m; j++) {
-        RecursosDisponibles[j] = Existencias[j] - RecursosUsados[j];
-        if (RecursosDisponibles[j] < 0) {
-            fprintf(stderr,
-                    "Error: RecursosDisponibles[%d] es negativo.\n", j);
+        printf("]  →  Necesidad = [");
+        for (int j = 0; j < m; j++) {
+            Necesidad[i*m + j] = Demanda[i*m + j] - Asignacion[i*m + j];
+            printf("%d", Necesidad[i*m + j]);
+            if (j < m - 1) printf(" ");
+        }
+        printf("]\n");
+        if (Necesidad[i*m + 0] < 0) {
+            fprintf(stderr,"Error: Necesidad[%d][0] < 0.\n", i);
             return 1;
         }
     }
 
+    // Calcular vector RecursosUsados = suma de cada columna de Asignacion
+    for (int j = 0; j < m; j++) {
+        RecursosUsados[j] = 0;
+        for (int i = 0; i < n; i++) {
+            RecursosUsados[j] += Asignacion[i*m + j];
+        }
+    }
+    print_vector_int("\nRecursosUsados", RecursosUsados, m);
+
+    // Calcular RecursosDisponibles = Existencias – RecursosUsados
+    for (int j = 0; j < m; j++) {
+        RecursosDisponibles[j] = Existencias[j] - RecursosUsados[j];
+        if (RecursosDisponibles[j] < 0) {
+            fprintf(stderr, "Error: RecursosDisponibles[%d] es negativo.\n", j);
+            return 1;
+        }
+    }
+    print_vector_int("Existencias (Available)", Existencias, m);
+    print_vector_int("RecursosDisponibles (initial)", RecursosDisponibles, m);
+
+    // Preparar estructuras para el Banquero
     bool *finalizado = malloc(n * sizeof(bool));
     int  *secuencia  = malloc(n * sizeof(int));
     if (!finalizado || !secuencia) {
         fprintf(stderr, "Error de asignación de memoria.\n");
         return 1;
     }
-
     for (int i = 0; i < n; i++) {
         finalizado[i] = false;
     }
 
+    printf("\n--- Inicio del Algoritmo del Banquero (trazado paso a paso) ---\n");
+
     int count = 0;
     bool progreso = true;
 
+    // Bucle principal
     while (count < n && progreso) {
-    progreso = false;
-    for (int i = 0; i < n; i++) {
-        if (!finalizado[i]) {
-            bool puede_ejecutar = true;
-            for (int j = 0; j < m; j++) {
-                if (Need[i*m + j] > RecursosDisponibles[j]) {
-                    puede_ejecutar = false;
-                    break;
-                }
-            }
-            if (puede_ejecutar) {
+        progreso = false;
+
+        // Imprimimos el vector Disponible actual al inicio de cada iteración
+        print_vector_int("\nRecursosDisponibles (antes de esta ronda)", RecursosDisponibles, m);
+
+        for (int i = 0; i < n; i++) {
+            if (!finalizado[i]) {
+                // Mostramos la necesidad del proceso i y el estado actual
+                printf("\nIntentando verificar P%d:\n", i + 1);
+                printf("  Necesidad P%d = [", i + 1);
                 for (int j = 0; j < m; j++) {
-                    RecursosDisponibles[j] += Allocation[i*m + j];
+                    printf("%d", Necesidad[i*m + j]);
+                    if (j < m - 1) printf(" ");
                 }
-                finalizado[i]   = true;
-                secuencia[count++] = i;
-                progreso        = true;
-                break;
+                printf("]\n");
+                printf("  RecursosDisponibles actuales = [");
+                for (int j = 0; j < m; j++) {
+                    printf("%d", RecursosDisponibles[j]);
+                    if (j < m - 1) printf(" ");
+                }
+                printf("]\n");
+
+                bool puede_ejecutar = true;
+                for (int j = 0; j < m; j++) {
+                    if (Necesidad[i*m + j] > RecursosDisponibles[j]) {
+                        printf("  -> NO se cumple: Necesidad P%d[%d] = %d > "
+                               "Disponibles[%d] = %d\n",
+                               i + 1,
+                               j,
+                               Necesidad[i*m + j],
+                               j,
+                               RecursosDisponibles[j]);
+                        puede_ejecutar = false;
+                        break;
+                    }
+                }
+                if (puede_ejecutar) {
+                    printf("  -> P%d puede ejecutarse (Need ≤ Disponibles).\n", i + 1);
+                    // Liberar recursos asignados a P_i
+                    printf("  → Ejecutando P%d y liberando Asignacion P%d = [", i + 1, i + 1);
+                    for (int j = 0; j < m; j++) {
+                        printf("%d", Asignacion[i*m + j]);
+                        if (j < m - 1) printf(" ");
+                    }
+                    printf("]\n");
+
+                    for (int j = 0; j < m; j++) {
+                        RecursosDisponibles[j] += Asignacion[i*m + j];
+                    }
+                    finalizado[i] = true;
+                    secuencia[count++] = i;
+
+                    // Mostrar vector Disponible tras liberar
+                    printf("  → RecursosDisponibles actualizados = [");
+                    for (int j = 0; j < m; j++) {
+                        printf("%d", RecursosDisponibles[j]);
+                        if (j < m - 1) printf(" ");
+                    }
+                    printf("]\n");
+
+                    progreso = true;
+                    break;  // Rompemos el for para reiniciar desde i=0
+                }
             }
         }
-    }
+
+        if (!progreso) {
+            printf("\n  No se encontró ningún proceso que pueda ejecutarse en esta ronda.\n");
+        }
     }
 
+    printf("\n--- Fin del Algoritmo del Banquero ---\n");
+
+    // Mostrar resultado final
     if (count == n) {
-        printf("El sistema está en ESTADO SEGURO.\n");
+        printf("\nEl sistema está en ESTADO SEGURO.\n");
         printf("Secuencia segura: ");
         for (int k = 0; k < n; k++) {
             printf("P%d", secuencia[k] + 1);
@@ -217,15 +303,16 @@ int main(int argc, char *argv[]) {
         }
         printf("\n");
     } else {
-        printf("¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n");
+        printf("\n¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n");
     }
 
+    // Liberar memoria
     free(Existencias);
     free(RecursosUsados);
     free(RecursosDisponibles);
-    free(Allocation);
-    free(Max);
-    free(Need);
+    free(Asignacion);
+    free(Demanda);
+    free(Necesidad);
     free(finalizado);
     free(secuencia);
 
