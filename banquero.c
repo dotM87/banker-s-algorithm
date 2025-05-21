@@ -107,7 +107,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Reservamos memoria dinámicamente
     int *Existencias       = malloc(m * sizeof(int));
     int *RecursosUsados    = malloc(m * sizeof(int));
     int *RecursosDisponibles = malloc(m * sizeof(int));
@@ -122,7 +121,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Leer vector Existencias (Available)
     for (int j = 0; j < m; j++) {
         if (fscanf(fp, "%d", &Existencias[j]) != 1) {
             fprintf(stderr, "Error leyendo Existencias[%d].\n", j);
@@ -131,7 +129,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Leer matriz Asignacion (n × m)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             if (fscanf(fp, "%d", &Asignacion[i*m + j]) != 1) {
@@ -142,7 +139,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Leer matriz Demanda (n × m)
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             if (fscanf(fp, "%d", &Demanda[i*m + j]) != 1) {
@@ -155,7 +151,6 @@ int main(int argc, char *argv[]) {
 
     fclose(fp);
 
-    // Calcular matriz Necesidad = Demanda – Asignacion
     printf("\n--- Cálculo de la matriz Necesidad (Max – Allocation) ---\n");
     for (int i = 0; i < n; i++) {
         printf("P%d: ", i + 1);
@@ -182,7 +177,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // Calcular vector RecursosUsados = suma de cada columna de Asignacion
     for (int j = 0; j < m; j++) {
         RecursosUsados[j] = 0;
         for (int i = 0; i < n; i++) {
@@ -191,7 +185,6 @@ int main(int argc, char *argv[]) {
     }
     print_vector_int("\nRecursosUsados", RecursosUsados, m);
 
-    // Calcular RecursosDisponibles = Existencias – RecursosUsados
     for (int j = 0; j < m; j++) {
         RecursosDisponibles[j] = Existencias[j] - RecursosUsados[j];
         if (RecursosDisponibles[j] < 0) {
@@ -202,7 +195,6 @@ int main(int argc, char *argv[]) {
     print_vector_int("Existencias (Available)", Existencias, m);
     print_vector_int("RecursosDisponibles (initial)", RecursosDisponibles, m);
 
-    // Preparar estructuras para el Banquero
     bool *finalizado = malloc(n * sizeof(bool));
     int  *secuencia  = malloc(n * sizeof(int));
     if (!finalizado || !secuencia) {
@@ -218,16 +210,13 @@ int main(int argc, char *argv[]) {
     int count = 0;
     bool progreso = true;
 
-    // Bucle principal
     while (count < n && progreso) {
         progreso = false;
 
-        // Imprimimos el vector Disponible actual al inicio de cada iteración
         print_vector_int("\nRecursosDisponibles (antes de esta ronda)", RecursosDisponibles, m);
 
         for (int i = 0; i < n; i++) {
             if (!finalizado[i]) {
-                // Mostramos la necesidad del proceso i y el estado actual
                 printf("\nIntentando verificar P%d:\n", i + 1);
                 printf("  Necesidad P%d = [", i + 1);
                 for (int j = 0; j < m; j++) {
@@ -258,7 +247,6 @@ int main(int argc, char *argv[]) {
                 }
                 if (puede_ejecutar) {
                     printf("  -> P%d puede ejecutarse (Need ≤ Disponibles).\n", i + 1);
-                    // Liberar recursos asignados a P_i
                     printf("  → Ejecutando P%d y liberando Asignacion P%d = [", i + 1, i + 1);
                     for (int j = 0; j < m; j++) {
                         printf("%d", Asignacion[i*m + j]);
@@ -272,7 +260,6 @@ int main(int argc, char *argv[]) {
                     finalizado[i] = true;
                     secuencia[count++] = i;
 
-                    // Mostrar vector Disponible tras liberar
                     printf("  → RecursosDisponibles actualizados = [");
                     for (int j = 0; j < m; j++) {
                         printf("%d", RecursosDisponibles[j]);
@@ -281,7 +268,7 @@ int main(int argc, char *argv[]) {
                     printf("]\n");
 
                     progreso = true;
-                    break;  // Rompemos el for para reiniciar desde i=0
+                    break;
                 }
             }
         }
@@ -293,7 +280,6 @@ int main(int argc, char *argv[]) {
 
     printf("\n--- Fin del Algoritmo del Banquero ---\n");
 
-    // Mostrar resultado final
     if (count == n) {
         printf("\nEl sistema está en ESTADO SEGURO.\n");
         printf("Secuencia segura: ");
@@ -306,7 +292,6 @@ int main(int argc, char *argv[]) {
         printf("\n¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n");
     }
 
-    // Liberar memoria
     free(Existencias);
     free(RecursosUsados);
     free(RecursosDisponibles);
