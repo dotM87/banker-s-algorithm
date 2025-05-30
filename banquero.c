@@ -3,8 +3,16 @@
 #include <string.h>
 #include <stdbool.h>
 
+#define COLOR_RESET    "\x1b[0m"
+#define COLOR_BOLD     "\x1b[1m"
+#define COLOR_RED      "\x1b[31m"
+#define COLOR_GREEN    "\x1b[32m"
+#define COLOR_YELLOW   "\x1b[33m"
+#define COLOR_BLUE     "\x1b[34m"
+#define COLOR_CYAN     "\x1b[36m"
+
 void print_vector_int(const char *nombre, int *v, int len) {
-    printf("%s = [", nombre);
+    printf(COLOR_CYAN "%s = [" COLOR_RESET, nombre);
     for (int i = 0; i < len; i++) {
         printf("%d", v[i]);
         if (i < len - 1) printf(" ");
@@ -13,16 +21,16 @@ void print_vector_int(const char *nombre, int *v, int len) {
 }
 
 void print_help(void) {
-    printf("BANQUERO: Detección de Interbloqueos (Algoritmo del Banquero)\n\n");
+    printf(COLOR_BOLD COLOR_BLUE "BANQUERO: Detección de Interbloqueos (Algoritmo del Banquero)\n\n" COLOR_RESET);
 
-    printf("USO:\n");
+    printf(COLOR_YELLOW "USO:\n" COLOR_RESET);
     printf("  banquero --help\n");
     printf("      Muestra esta ayuda.\n");
     printf("  banquero <archivo_entrada>\n");
     printf("      Comprueba si el sistema está en estado seguro a partir de los datos\n");
-    printf("      de recursos y procesos descriptos en el fichero.\n\n");
+    printf("      de recursos y procesos descritos en el fichero.\n\n");
 
-    printf("FORMATO DEL ARCHIVO DE ENTRADA:\n");
+    printf(COLOR_YELLOW "FORMATO DEL ARCHIVO DE ENTRADA:\n" COLOR_RESET);
     printf("  1) Primera línea:\n");
     printf("       n m\n");
     printf("     – n = número de procesos (entero > 0)\n");
@@ -42,15 +50,15 @@ void print_help(void) {
 
     printf("   – Internamente se calcula Necesidad[i][j] = Demanda[i][j] – Asignacion[i][j].\n\n");
 
-    printf("SALIDA:\n");
+    printf(COLOR_YELLOW "SALIDA:\n" COLOR_RESET);
     printf("  • Si el estado es seguro:\n");
-    printf("      El sistema está en ESTADO SEGURO.\n");
+    printf("      " COLOR_GREEN "El sistema está en ESTADO SEGURO." COLOR_RESET "\n");
     printf("      Secuencia segura: P<índice> → P<índice> → …\n\n");
 
     printf("  • Si el estado es inseguro o hay deadlock:\n");
-    printf("      ¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n\n");
+    printf("      " COLOR_RED "¡INTERBLOQUEO DETECTADO! No existe secuencia segura." COLOR_RESET "\n\n");
 
-    printf("EJEMPLO DE ARCHIVO “datos.txt”:\n");
+    printf(COLOR_YELLOW "EJEMPLO DE ARCHIVO “datos.txt”:\n" COLOR_RESET);
     printf("  5 3\n");
     printf("  9 5 6           # Existencias (Available)\n");
     printf("  0 1 0           # Asignacion P1\n");
@@ -66,12 +74,12 @@ void print_help(void) {
 
     printf("  – 5 procesos (P1..P5), 3 recursos (R1..R3).\n\n");
 
-    printf("EJEMPLO DE INVOCACIÓN:\n");
+    printf(COLOR_YELLOW "EJEMPLO DE INVOCACIÓN:\n" COLOR_RESET);
     printf("  $ ./banquero --help\n");
     printf("  $ ./banquero datos.txt\n");
 }
 
-bool help(char *arg) {
+bool is_help_arg(char *arg) {
     return (strcmp(arg, "uso") == 0 ||
             strcmp(arg, "help") == 0 ||
             strcmp(arg, "-h") == 0 ||
@@ -79,51 +87,46 @@ bool help(char *arg) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc == 1) {
-        print_help();
-        return 0;
-    }
-
-    if (argc == 2 && help(argv[1])) {
+    if (argc == 1 || (argc == 2 && is_help_arg(argv[1]))) {
         print_help();
         return 0;
     }
 
     FILE *fp = fopen(argv[1], "r");
     if (fp == NULL) {
-        perror("Error abriendo el archivo");
+        fprintf(stderr, COLOR_RED "Error abriendo el archivo: %s\n" COLOR_RESET, argv[1]);
         return 1;
     }
 
     int n, m;
     if (fscanf(fp, "%d %d", &n, &m) != 2) {
-        fprintf(stderr, "Formato inválido en la primera línea.\n");
+        fprintf(stderr, COLOR_RED "Formato inválido en la primera línea.\n" COLOR_RESET);
         fclose(fp);
         return 1;
     }
     if (n <= 0 || m <= 0) {
-        fprintf(stderr, "n y m deben ser mayores que cero.\n");
+        fprintf(stderr, COLOR_RED "Error: n y m deben ser mayores que cero.\n" COLOR_RESET);
         fclose(fp);
         return 1;
     }
 
-    int *Existencias       = malloc(m * sizeof(int));
-    int *RecursosUsados    = malloc(m * sizeof(int));
-    int *RecursosDisponibles = malloc(m * sizeof(int));
-    int *Asignacion        = malloc(n * m * sizeof(int));
-    int *Demanda           = malloc(n * m * sizeof(int));
-    int *Necesidad         = malloc(n * m * sizeof(int));
+    int *Existencias           = (int*)malloc(m * sizeof(int));
+    int *RecursosUsados        = (int*)malloc(m * sizeof(int));
+    int *RecursosDisponibles   = (int*)malloc(m * sizeof(int));
+    int *Asignacion            = (int*)malloc(n * m * sizeof(int));
+    int *Demanda               = (int*)malloc(n * m * sizeof(int));
+    int *Necesidad             = (int*)malloc(n * m * sizeof(int));
 
     if (!Existencias || !RecursosUsados || !RecursosDisponibles ||
-        !Asignacion || !Demanda || !Necesidad) {
-        fprintf(stderr, "Error de asignación de memoria.\n");
+        !Asignacion  || !Demanda        || !Necesidad) {
+        fprintf(stderr, COLOR_RED "Error de asignación de memoria.\n" COLOR_RESET);
         fclose(fp);
         return 1;
     }
 
     for (int j = 0; j < m; j++) {
         if (fscanf(fp, "%d", &Existencias[j]) != 1) {
-            fprintf(stderr, "Error leyendo Existencias[%d].\n", j);
+            fprintf(stderr, COLOR_RED "Error leyendo Existencias[%d].\n" COLOR_RESET, j);
             fclose(fp);
             return 1;
         }
@@ -132,7 +135,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             if (fscanf(fp, "%d", &Asignacion[i*m + j]) != 1) {
-                fprintf(stderr, "Error leyendo Asignacion[%d][%d].\n", i, j);
+                fprintf(stderr, COLOR_RED "Error leyendo Asignacion[%d][%d].\n" COLOR_RESET, i, j);
                 fclose(fp);
                 return 1;
             }
@@ -142,7 +145,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < m; j++) {
             if (fscanf(fp, "%d", &Demanda[i*m + j]) != 1) {
-                fprintf(stderr, "Error leyendo Demanda[%d][%d].\n", i, j);
+                fprintf(stderr, COLOR_RED "Error leyendo Demanda[%d][%d].\n" COLOR_RESET, i, j);
                 fclose(fp);
                 return 1;
             }
@@ -151,15 +154,14 @@ int main(int argc, char *argv[]) {
 
     fclose(fp);
 
-    printf("\n--- Cálculo de la matriz Necesidad (Max – Allocation) ---\n");
+    printf(COLOR_BLUE "\n--- Cálculo de la matriz Necesidad (Max – Allocation) ---\n\n" COLOR_RESET);
     for (int i = 0; i < n; i++) {
-        printf("P%d: ", i + 1);
-        printf("Demanda = [");
+        printf(COLOR_YELLOW "P%d:" COLOR_RESET " Demanda = [", i + 1);
         for (int j = 0; j < m; j++) {
             printf("%d", Demanda[i*m + j]);
             if (j < m - 1) printf(" ");
         }
-        printf("], Asignacion = [");
+        printf("], Asignación = [");
         for (int j = 0; j < m; j++) {
             printf("%d", Asignacion[i*m + j]);
             if (j < m - 1) printf(" ");
@@ -167,14 +169,20 @@ int main(int argc, char *argv[]) {
         printf("]  →  Necesidad = [");
         for (int j = 0; j < m; j++) {
             Necesidad[i*m + j] = Demanda[i*m + j] - Asignacion[i*m + j];
+            if (Necesidad[i*m + j] < 0) {
+                fprintf(stderr, COLOR_RED "\nError: Necesidad[%d][%d] < 0.\n" COLOR_RESET, i, j);
+                free(Existencias);
+                free(RecursosUsados);
+                free(RecursosDisponibles);
+                free(Asignacion);
+                free(Demanda);
+                free(Necesidad);
+                return 1;
+            }
             printf("%d", Necesidad[i*m + j]);
             if (j < m - 1) printf(" ");
         }
         printf("]\n");
-        if (Necesidad[i*m + 0] < 0) {
-            fprintf(stderr,"Error: Necesidad[%d][0] < 0.\n", i);
-            return 1;
-        }
     }
 
     for (int j = 0; j < m; j++) {
@@ -188,36 +196,41 @@ int main(int argc, char *argv[]) {
     for (int j = 0; j < m; j++) {
         RecursosDisponibles[j] = Existencias[j] - RecursosUsados[j];
         if (RecursosDisponibles[j] < 0) {
-            fprintf(stderr, "Error: RecursosDisponibles[%d] es negativo.\n", j);
+            fprintf(stderr, COLOR_RED "Error: RecursosDisponibles[%d] es negativo.\n" COLOR_RESET, j);
+            free(Existencias);
+            free(RecursosUsados);
+            free(RecursosDisponibles);
+            free(Asignacion);
+            free(Demanda);
+            free(Necesidad);
             return 1;
         }
     }
-    print_vector_int("Existencias (Available)", Existencias, m);
-    print_vector_int("RecursosDisponibles (initial)", RecursosDisponibles, m);
+    print_vector_int(COLOR_YELLOW "\nExistencias (Available)" COLOR_RESET, Existencias, m);
+    print_vector_int(COLOR_YELLOW "RecursosDisponibles (inicial)" COLOR_RESET, RecursosDisponibles, m);
 
-    bool *finalizado = malloc(n * sizeof(bool));
-    int  *secuencia  = malloc(n * sizeof(int));
+    bool *finalizado = (bool*)malloc(n * sizeof(bool));
+    int  *secuencia  = (int*)malloc(n * sizeof(int));
     if (!finalizado || !secuencia) {
-        fprintf(stderr, "Error de asignación de memoria.\n");
+        fprintf(stderr, COLOR_RED "Error de asignación de memoria.\n" COLOR_RESET);
         return 1;
     }
     for (int i = 0; i < n; i++) {
         finalizado[i] = false;
     }
 
-    printf("\n--- Inicio del Algoritmo del Banquero (trazado paso a paso) ---\n");
+    printf(COLOR_BLUE "\n--- Inicio del Algoritmo del Banquero (trazado paso a paso) ---\n\n" COLOR_RESET);
 
     int count = 0;
     bool progreso = true;
 
     while (count < n && progreso) {
         progreso = false;
-
-        print_vector_int("\nRecursosDisponibles (antes de esta ronda)", RecursosDisponibles, m);
+        print_vector_int(COLOR_YELLOW "\nRecursosDisponibles (antes de esta ronda)" COLOR_RESET, RecursosDisponibles, m);
 
         for (int i = 0; i < n; i++) {
             if (!finalizado[i]) {
-                printf("\nIntentando verificar P%d:\n", i + 1);
+                printf(COLOR_CYAN "\nIntentando verificar P%d:\n" COLOR_RESET, i + 1);
                 printf("  Necesidad P%d = [", i + 1);
                 for (int j = 0; j < m; j++) {
                     printf("%d", Necesidad[i*m + j]);
@@ -234,8 +247,7 @@ int main(int argc, char *argv[]) {
                 bool puede_ejecutar = true;
                 for (int j = 0; j < m; j++) {
                     if (Necesidad[i*m + j] > RecursosDisponibles[j]) {
-                        printf("  -> NO se cumple: Necesidad P%d[%d] = %d > "
-                               "Disponibles[%d] = %d\n",
+                        printf("  -> " COLOR_RED "NO se cumple:" COLOR_RESET " Necesidad P%d[%d] = %d > Disponibles[%d] = %d\n",
                                i + 1,
                                j,
                                Necesidad[i*m + j],
@@ -246,13 +258,13 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 if (puede_ejecutar) {
-                    printf("  -> P%d puede ejecutarse (Need ≤ Disponibles).\n", i + 1);
-                    printf("  → Ejecutando P%d y liberando Asignacion P%d = [", i + 1, i + 1);
+                    printf("  -> " COLOR_GREEN "P%d puede ejecutarse (Need ≤ Disponibles)." COLOR_RESET "\n", i + 1);
+                    printf("  → " COLOR_YELLOW "Ejecutando P%d y liberando Asignación P%d = [" COLOR_RESET, i + 1, i + 1);
                     for (int j = 0; j < m; j++) {
                         printf("%d", Asignacion[i*m + j]);
                         if (j < m - 1) printf(" ");
                     }
-                    printf("]\n");
+                    printf("]" COLOR_RESET "\n");
 
                     for (int j = 0; j < m; j++) {
                         RecursosDisponibles[j] += Asignacion[i*m + j];
@@ -260,12 +272,12 @@ int main(int argc, char *argv[]) {
                     finalizado[i] = true;
                     secuencia[count++] = i;
 
-                    printf("  → RecursosDisponibles actualizados = [");
+                    printf("  → " COLOR_CYAN "RecursosDisponibles actualizados = [" COLOR_RESET);
                     for (int j = 0; j < m; j++) {
                         printf("%d", RecursosDisponibles[j]);
                         if (j < m - 1) printf(" ");
                     }
-                    printf("]\n");
+                    printf("]" COLOR_RESET "\n");
 
                     progreso = true;
                     break;
@@ -274,22 +286,22 @@ int main(int argc, char *argv[]) {
         }
 
         if (!progreso) {
-            printf("\n  No se encontró ningún proceso que pueda ejecutarse en esta ronda.\n");
+            printf(COLOR_RED "\n  No se encontró ningún proceso que pueda ejecutarse en esta ronda.\n" COLOR_RESET);
         }
     }
 
-    printf("\n--- Fin del Algoritmo del Banquero ---\n");
+    printf(COLOR_BLUE "\n--- Fin del Algoritmo del Banquero ---\n\n" COLOR_RESET);
 
     if (count == n) {
-        printf("\nEl sistema está en ESTADO SEGURO.\n");
-        printf("Secuencia segura: ");
+        printf(COLOR_GREEN "El sistema está en ESTADO SEGURO.\n" COLOR_RESET);
+        printf(COLOR_YELLOW "Secuencia segura: " COLOR_RESET);
         for (int k = 0; k < n; k++) {
-            printf("P%d", secuencia[k] + 1);
+            printf(COLOR_BOLD "P%d" COLOR_RESET, secuencia[k] + 1);
             if (k < n - 1) printf(" → ");
         }
         printf("\n");
     } else {
-        printf("\n¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n");
+        printf(COLOR_RED "¡INTERBLOQUEO DETECTADO! No existe secuencia segura.\n" COLOR_RESET);
     }
 
     free(Existencias);
