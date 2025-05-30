@@ -1,20 +1,25 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -g
+CXX = g++
+CXXFLAGS = -Wall -O2 -std=c++17
 
-TARGET = banquero
+SRC = banquero.c
+OUT = banquero
+TMP = banquero_ascii.c
 
-SRCS = banquero.c
-OBJS = $(SRCS:.c=.o)
+CHARMAP := $(shell locale charmap)
 
-all: $(TARGET)
+all: preprocess $(OUT)
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+preprocess:
+ifeq ($(CHARMAP),UTF-8)
+	@echo "→ Sistema con codificación UTF-8. Compilando fuente original."
+	cp $(SRC) $(TMP)
+else
+	@echo "⚠ Sistema con codificación $(CHARMAP). Convirtiendo archivo a ASCII..."
+	iconv -f utf-8 -t ascii//IGNORE $(SRC) -o $(TMP)
+endif
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+$(OUT): $(TMP)
+	$(CXX) $(CXXFLAGS) $(TMP) -o $(OUT)
 
 clean:
-	rm -f $(OBJS) $(TARGET)
-
-.PHONY: all clean
+	// rm -f $(TMP)
